@@ -359,6 +359,9 @@ class Signal:
         job_base_name: Optional[str] = None,
         test_module: Optional[str] = None,
         source: SignalSource = SignalSource.TEST,
+        test_file: Optional[str] = None,
+        test_classname: Optional[str] = None,
+        test_name: Optional[str] = None,
     ):
         self.key = key
         self.workflow_name = workflow_name
@@ -369,6 +372,15 @@ class Signal:
         self.test_module = test_module
         # Track the origin of the signal (test-track or job-track).
         self.source = source
+        # For TEST signals: structured identity of the failing test, sourced
+        # from tests.all_test_runs. Surfaced once at the top of the advisor
+        # signal_pattern JSON so the AI advisor has authoritative ground
+        # truth for which test failed (file/classname/name) without
+        # re-deriving from logs. Every FAILURE event in this signal IS this
+        # specific test failing.
+        self.test_file = test_file
+        self.test_classname = test_classname
+        self.test_name = test_name
 
     def detect_fixed(self) -> bool:
         """

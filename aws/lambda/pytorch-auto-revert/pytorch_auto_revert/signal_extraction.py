@@ -151,6 +151,9 @@ class SignalExtractor:
                     job_base_name=s.job_base_name,
                     test_module=s.test_module,
                     source=s.source,
+                    test_file=s.test_file,
+                    test_classname=s.test_classname,
+                    test_name=s.test_name,
                 )
             )
         return deduped
@@ -237,6 +240,9 @@ class SignalExtractor:
                     job_base_name=s.job_base_name,
                     test_module=s.test_module,
                     source=s.source,
+                    test_file=s.test_file,
+                    test_classname=s.test_classname,
+                    test_name=s.test_name,
                 )
             )
         return out
@@ -302,6 +308,9 @@ class SignalExtractor:
                     job_base_name=s.job_base_name,
                     test_module=s.test_module,
                     source=s.source,
+                    test_file=s.test_file,
+                    test_classname=s.test_classname,
+                    test_name=s.test_name,
                 )
             )
         return out
@@ -393,6 +402,11 @@ class SignalExtractor:
         failing_tests_by_job_base_name: Set[
             Tuple[WorkflowName, JobBaseName, TestId]
         ] = set()
+        # Capture structured test identity (file/classname/name) per test_id so
+        # we can attach it once at the Signal level. The TestRow `test_id`
+        # property collapses to "file::name" and drops classname; we keep the
+        # full triple here for the advisor signal_pattern JSON.
+        test_identity_by_test_id: Dict[TestId, Tuple[str, str, str]] = {}
         for tr in test_rows:
             job = jobs_by_id.get(tr.job_id)
             job_base_name = job.base_name
@@ -419,6 +433,9 @@ class SignalExtractor:
                 outcome = existing
 
             tests_by_group_attempt[key] = outcome
+            test_identity_by_test_id.setdefault(
+                tr.test_id, (tr.file, tr.classname, tr.name)
+            )
 
             # Track keys that have at least one persistent failure (no retry success)
             if outcome.failure_runs > 0 and outcome.success_runs == 0:
@@ -523,6 +540,9 @@ class SignalExtractor:
                 # Extract test module from test_id (format: "file.py::test_name")
                 # Result: "file" or "path/to/file" without .py extension
                 test_module = test_id.split("::")[0].replace(".py", "")
+                test_file, test_classname, test_name = test_identity_by_test_id.get(
+                    test_id, ("", "", "")
+                )
 
                 signals.append(
                     Signal(
@@ -532,6 +552,9 @@ class SignalExtractor:
                         job_base_name=str(job_base_name),
                         test_module=test_module,
                         source=SignalSource.TEST,
+                        test_file=test_file or None,
+                        test_classname=test_classname or None,
+                        test_name=test_name or None,
                     )
                 )
 
