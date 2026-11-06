@@ -1,0 +1,33 @@
+name: Check full ExecuTorch backend qualification
+description: Require a successful full matrix on the source commit before publication
+inputs:
+  ref:
+    description: Source ref to qualify; resolved once to an immutable SHA
+    required: true
+  github-token:
+    description: Token with actions read permission for pytorch/executorch
+    required: false
+    default: ''
+  strict:
+    description: Require ref to already be a full commit SHA
+    required: false
+    default: 'false'
+  timeout:
+    description: Maximum wait in seconds for an in-flight qualification
+    required: false
+    default: '18000'
+outputs:
+  sha:
+    description: Qualified immutable source SHA
+    value: ${{ steps.check.outputs.sha }}
+runs:
+  using: composite
+  steps:
+    - id: check
+      shell: bash
+      env:
+        QUALIFICATION_REF: ${{ inputs.ref }}
+        QUALIFICATION_STRICT: ${{ inputs.strict }}
+        QUALIFICATION_TIMEOUT: ${{ inputs.timeout }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: python3 "${GITHUB_ACTION_PATH}/../../../tools/ci/backend_qualification.py"

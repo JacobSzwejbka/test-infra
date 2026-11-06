@@ -46,6 +46,11 @@ if [[ $DRY_RUN = "disabled" ]]; then
     DRY_RUN_FLAG=""
 fi
 
+qualification_map="${tmp_dir}/qualification.json"
+if [[ "${PACKAGE_NAME}" == "executorch" && "${DRY_RUN}" == "disabled" ]]; then
+    printf '%s\n' "${pkgs_to_promote}" | python3 "${DIR}/../check_executorch_qualification.py" --urls --output "${qualification_map}" || exit 1
+fi
+
 for pkg in ${pkgs_to_promote}; do
     pkg_basename="$(basename "${pkg}")"
 
@@ -64,7 +69,21 @@ for pkg in ${pkgs_to_promote}; do
 
     (
         set -x
-        aws s3 cp ${DRY_RUN_FLAG} *.whl "s3://pytorch-backup/${PACKAGE_NAME}-${PACKAGE_VERSION}-pypi-staging/"
+        provenance_args=()
+        if [[ "${PACKAGE_NAME}" == "executorch" && "${DRY_RUN}" == "disabled" ]]; then
+            source_sha=$(python3 - "${qualification_map}" "${pkg}" <<'PY'
+import json
+import sys
+import urllib.parse
+with open(sys.argv[1]) as source:
+    mapping = json.load(source)
+path = urllib.parse.unquote(urllib.parse.urlparse(sys.argv[2]).path).lstrip('/')
+print(mapping['s3://pytorch/' + path])
+PY
+            ) || exit 1
+            provenance_args=(--metadata "source-sha=${source_sha}")
+        fi
+        aws s3 cp ${DRY_RUN_FLAG} *.whl "s3://pytorch-backup/${PACKAGE_NAME}-${PACKAGE_VERSION}-pypi-staging/" ${provenance_args[@]+"${provenance_args[@]}"}
         rm -rf ./*.whl
     )
 done

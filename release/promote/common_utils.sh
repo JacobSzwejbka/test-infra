@@ -102,6 +102,11 @@ aws_promote() {
         local planned
         planned=$(${AWS} s3 cp --dryrun "${cp_args[@]}" \
             | sed -E 's/^\(dryrun\) copy: (.*) to (.*)$/+ to promote: \1 -> \2/')
+        if [[ "${package_name}" == "executorch" ]]; then
+            local qualification_script
+            qualification_script="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/check_executorch_qualification.py"
+            printf '%s\n' "${planned}" | python3 "${qualification_script}" --plan || return 1
+        fi
         if [[ -n "${planned}" ]]; then
             echo "${planned}"
             echo "=== $(echo "${planned}" | grep -c '^+ to promote: ') binaries to promote ==="
@@ -276,6 +281,12 @@ CFG
     if [[ ${total_files} -eq 0 ]]; then
         echo "+ No matching files found, skipping R2 promotion"
         return 0
+    fi
+
+    if [[ "${package_name}" == "executorch" ]]; then
+        local qualification_script
+        qualification_script="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/check_executorch_qualification.py"
+        python3 "${qualification_script}" --keys --bucket "${PYTORCH_S3_BUCKET#s3://}" < "${file_list}" || return 1
     fi
 
     # Promote files concurrently. R2's throttle is per-object -- "reduce your

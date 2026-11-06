@@ -1,0 +1,27 @@
+name: Test backend qualification policy
+on:
+  pull_request:
+    paths:
+      - tools/ci/*backend_qualification*.py
+      - release/*executorch_qualification*.py
+      - release/promote/common_utils.sh
+      - release/pypi/upload_pypi_to_staging.sh
+      - .github/actions/check-backend-qualification/**
+      - .github/workflows/_binary_upload.yml
+      - .github/workflows/release-pypi.yml
+      - .github/workflows/test-backend-qualification-policy.yml
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: |
+          python3 tools/ci/test_backend_qualification.py
+          python3 release/test_check_executorch_qualification.py
+          bash -n release/promote/common_utils.sh
+          bash -n release/pypi/upload_pypi_to_staging.sh

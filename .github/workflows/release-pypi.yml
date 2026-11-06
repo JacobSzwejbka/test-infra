@@ -84,6 +84,16 @@ jobs:
               "${PACKAGE} ${!version} - files to publish to PyPI" \
               "${DRY_RUN}"
 
+      - name: Require qualified ExecuTorch source
+        if: ${{ inputs.package == 'executorch' && inputs.dryrun == 'disabled' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source ./release/release_versions.sh
+          python3 release/check_executorch_qualification.py \
+            --staging-uri "s3://pytorch-backup/executorch-${EXECUTORCH_VERSION}-pypi-staging/" \
+            --dist-directory dist/
+
       - name: Publish package to PyPI
         if: ${{ inputs.dryrun == 'disabled' }}
         uses: pypa/gh-action-pypi-publish@release/v1
